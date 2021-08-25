@@ -8,6 +8,8 @@ from .models import User
 from .utils import Util
 from django.contrib.sites.shortcuts import get_current_site
 from django.urls import reverse
+import jwt
+from incomeexpensesapi.settings import SECRET_KEY
 # Create your views here.
 
 class RegisterView(generics.GenericAPIView):
@@ -42,5 +44,21 @@ class RegisterView(generics.GenericAPIView):
 
 class VerifyEmail(generics.GenericAPIView):
 
-    def get(self):
-        pass
+    def get(self,request):
+        token=request.GET.get('token')
+        print(f"token : {token}")
+        try:
+            payload = jwt.decode(token,SECRET_KEY)
+            print(f"payload : {payload}")
+            user = User.objects.get(id=payload['user_id'])
+            if not user.is_verified:
+                user.is_verified = True
+                user.save()
+
+            return Response({'email':'Successfully Activated'},status=status.HTTP_200_OK)
+
+        except jwt.ExpiredSignatureError as e:
+            return Response({'error':'Activation Expired'},status=status.HTTP_400_BAD_REQUEST)
+        
+        except jwt.exceptions.DecodeError as e:
+            return Response({'error':'Invalid Token'},status=status.HTTP_400_BAD_REQUEST)
